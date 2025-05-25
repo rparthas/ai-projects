@@ -2,6 +2,8 @@
 # Main script file
 
 import re
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
 
 def extract_video_id(video_url: str) -> str | None:
     """
@@ -34,4 +36,35 @@ def extract_video_id(video_url: str) -> str | None:
             return match.group(1)
     
     # Return None if no pattern matches
-    return None 
+    return None
+
+
+def get_youtube_transcript(video_id: str) -> str | None:
+    """
+    Fetch YouTube video transcript and return as a single string.
+    
+    Args:
+        video_id (str): YouTube video ID
+        
+    Returns:
+        str | None: Transcript text as a single string if successful, 
+                   None if transcript not found or error occurs
+    """
+    try:
+        # Fetch transcript from YouTube
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+        
+        # Concatenate all text segments into a single string
+        transcript_text = " ".join([segment['text'] for segment in transcript_list])
+        
+        return transcript_text
+        
+    except TranscriptsDisabled:
+        print(f"Error: Transcripts are disabled for video ID: {video_id}")
+        return None
+    except NoTranscriptFound:
+        print(f"Error: No transcript found for video ID: {video_id}")
+        return None
+    except Exception as e:
+        print(f"Error fetching transcript for video ID {video_id}: {str(e)}")
+        return None 

@@ -1,5 +1,7 @@
 import unittest
-from main import extract_video_id
+from unittest.mock import patch
+from main import extract_video_id, get_youtube_transcript
+from youtube_transcript_api._errors import NoTranscriptFound
 
 
 class TestExtractVideoId(unittest.TestCase):
@@ -58,6 +60,64 @@ class TestExtractVideoId(unittest.TestCase):
         url = "https://www.youtube.com/"
         result = extract_video_id(url)
         self.assertIsNone(result)
+
+
+class TestGetYoutubeTranscript(unittest.TestCase):
+    """Unit tests for the get_youtube_transcript function."""
+    
+    @patch('main.YouTubeTranscriptApi.get_transcript')
+    def test_successful_transcript_retrieval(self, mock_get_transcript):
+        """Test successful transcript retrieval with mocked API call."""
+        # Configure mock to return sample transcript data
+        mock_transcript_data = [
+            {'text': 'Hello', 'start': 0.0, 'duration': 1.0},
+            {'text': 'world', 'start': 1.0, 'duration': 1.0},
+            {'text': 'this', 'start': 2.0, 'duration': 1.0},
+            {'text': 'is', 'start': 3.0, 'duration': 1.0},
+            {'text': 'a', 'start': 4.0, 'duration': 1.0},
+            {'text': 'test', 'start': 5.0, 'duration': 1.0}
+        ]
+        mock_get_transcript.return_value = mock_transcript_data
+        
+        # Call the function
+        result = get_youtube_transcript("test_video_id")
+        
+        # Assert the result is correctly concatenated
+        expected_result = "Hello world this is a test"
+        self.assertEqual(result, expected_result)
+        
+        # Verify the API was called with correct video ID
+        mock_get_transcript.assert_called_once_with("test_video_id")
+    
+    @patch('main.YouTubeTranscriptApi.get_transcript')
+    def test_transcript_not_found(self, mock_get_transcript):
+        """Test transcript not found exception handling."""
+        # Configure mock to raise NoTranscriptFound exception
+        mock_get_transcript.side_effect = NoTranscriptFound("test_video_id", [], None)
+        
+        # Call the function
+        result = get_youtube_transcript("test_video_id")
+        
+        # Assert None is returned
+        self.assertIsNone(result)
+        
+        # Verify the API was called
+        mock_get_transcript.assert_called_once_with("test_video_id")
+    
+    @patch('main.YouTubeTranscriptApi.get_transcript')
+    def test_generic_api_error(self, mock_get_transcript):
+        """Test generic API error exception handling."""
+        # Configure mock to raise a generic exception
+        mock_get_transcript.side_effect = Exception("Test Generic Error")
+        
+        # Call the function
+        result = get_youtube_transcript("test_video_id")
+        
+        # Assert None is returned
+        self.assertIsNone(result)
+        
+        # Verify the API was called
+        mock_get_transcript.assert_called_once_with("test_video_id")
 
 
 if __name__ == "__main__":
