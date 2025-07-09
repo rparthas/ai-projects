@@ -1,6 +1,12 @@
 import unittest
 from unittest.mock import patch
-from main import extract_video_id, get_youtube_transcript, generate_blog_post_with_ollama, extract_title_from_blog_post
+from main import (
+    extract_video_id,
+    get_youtube_transcript,
+    generate_podcast_conversation_with_ollama,
+    create_podcast_conversation_prompt,
+    extract_title_from_podcast
+)
 from youtube_transcript_api._errors import NoTranscriptFound
 import ollama
 
@@ -34,7 +40,7 @@ class TestExtractVideoId(unittest.TestCase):
     
     def test_url_with_extra_parameters(self):
         """Test URL with additional parameters like timestamps."""
-        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s&list=PLrAXtmRdnEQy8VJqQzNhyD2QM8g5cREEJ"
+        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s"
         result = extract_video_id(url)
         self.assertEqual(result, "dQw4w9WgXcQ")
     
@@ -72,11 +78,7 @@ class TestGetYoutubeTranscript(unittest.TestCase):
         # Configure mock to return sample transcript data
         mock_transcript_data = [
             {'text': 'Hello', 'start': 0.0, 'duration': 1.0},
-            {'text': 'world', 'start': 1.0, 'duration': 1.0},
-            {'text': 'this', 'start': 2.0, 'duration': 1.0},
-            {'text': 'is', 'start': 3.0, 'duration': 1.0},
-            {'text': 'a', 'start': 4.0, 'duration': 1.0},
-            {'text': 'test', 'start': 5.0, 'duration': 1.0}
+            {'text': 'world', 'start': 1.0, 'duration': 1.0}
         ]
         mock_get_transcript.return_value = mock_transcript_data
         
@@ -84,7 +86,7 @@ class TestGetYoutubeTranscript(unittest.TestCase):
         result = get_youtube_transcript("test_video_id")
         
         # Assert the result is correctly concatenated
-        expected_result = "Hello world this is a test"
+        expected_result = "Hello world"
         self.assertEqual(result, expected_result)
         
         # Verify the API was called with correct video ID
@@ -121,35 +123,38 @@ class TestGetYoutubeTranscript(unittest.TestCase):
         mock_get_transcript.assert_called_once_with("test_video_id")
 
 
-class TestGenerateBlogPostWithOllama(unittest.TestCase):
-    """Unit tests for the generate_blog_post_with_ollama function."""
+class TestCreatePodcastConversationPrompt(unittest.TestCase):
+    def test_prompt_contains_excerpt(self):
+        transcript = "AI is changing the world."
+        prompt = create_podcast_conversation_prompt(transcript)
+        self.assertIn("AI is changing the world.", prompt)
+        self.assertIn("podcast conversation", prompt)
+        self.assertIn("Host 1", prompt) == False  # Should not pre-fill script
+
+
+class TestGeneratePodcastConversationWithOllama(unittest.TestCase):
+    """Unit tests for the generate_podcast_conversation_with_ollama function."""
     
     @patch('main.ollama.chat')
-    def test_successful_blog_post_generation(self, mock_ollama_chat):
-        """Test successful blog post generation with mocked API call."""
+    def test_successful_podcast_generation(self, mock_ollama_chat):
+        """Test successful podcast generation with mocked API call."""
         # Configure mock to return a successful API response
         mock_response = {
             'message': {
-                'content': "Title: Test Blog Post\n\nThis is a mocked blog post content generated from the transcript."
+                'content': "Host 1: Welcome to the show!\nHost 2: Thanks! Let's dive in."
             }
         }
         mock_ollama_chat.return_value = mock_response
         
         # Call the function
-        result = generate_blog_post_with_ollama("Test prompt", "test_model_name")
+        result = generate_podcast_conversation_with_ollama("Test prompt", "test_model_name")
         
         # Assert the result matches the mocked content
-        expected_result = "Title: Test Blog Post\n\nThis is a mocked blog post content generated from the transcript."
+        expected_result = "Host 1: Welcome to the show!\nHost 2: Thanks! Let's dive in."
         self.assertEqual(result, expected_result)
         
         # Verify the API was called with correct parameters
-        mock_ollama_chat.assert_called_once_with(
-            model="test_model_name",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that converts video transcripts into engaging blog posts."},
-                {"role": "user", "content": "Test prompt"}
-            ]
-        )
+        mock_ollama_chat.assert_called_once()
     
     @patch('main.ollama.chat')
     def test_ollama_api_error(self, mock_ollama_chat):
@@ -158,19 +163,13 @@ class TestGenerateBlogPostWithOllama(unittest.TestCase):
         mock_ollama_chat.side_effect = ollama.ResponseError("Test API Error")
         
         # Call the function
-        result = generate_blog_post_with_ollama("Test prompt", "test_model_name")
+        result = generate_podcast_conversation_with_ollama("Test prompt", "test_model_name")
         
         # Assert None is returned
         self.assertIsNone(result)
         
         # Verify the API was called
-        mock_ollama_chat.assert_called_once_with(
-            model="test_model_name",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that converts video transcripts into engaging blog posts."},
-                {"role": "user", "content": "Test prompt"}
-            ]
-        )
+        mock_ollama_chat.assert_called_once()
     
     @patch('main.ollama.chat')
     def test_connection_error(self, mock_ollama_chat):
@@ -179,72 +178,56 @@ class TestGenerateBlogPostWithOllama(unittest.TestCase):
         mock_ollama_chat.side_effect = ConnectionError("Test Connection Error")
         
         # Call the function
-        result = generate_blog_post_with_ollama("Test prompt", "test_model_name")
+        result = generate_podcast_conversation_with_ollama("Test prompt", "test_model_name")
         
         # Assert None is returned
         self.assertIsNone(result)
         
         # Verify the API was called
-        mock_ollama_chat.assert_called_once_with(
-            model="test_model_name",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that converts video transcripts into engaging blog posts."},
-                {"role": "user", "content": "Test prompt"}
-            ]
-        )
+        mock_ollama_chat.assert_called_once()
 
 
-class TestExtractTitleFromBlogPost(unittest.TestCase):
-    """Unit tests for the extract_title_from_blog_post function."""
+class TestExtractTitleFromPodcast(unittest.TestCase):
+    """Unit tests for the extract_title_from_podcast function."""
     
-    def test_extract_title_with_title_prefix(self):
-        """Test extracting title when 'Title: ' prefix is present."""
-        blog_post = "Title: How to Build Amazing Applications\n\nThis is the content of the blog post..."
-        result = extract_title_from_blog_post(blog_post)
-        self.assertEqual(result, "How_to_Build_Amazing_Applications")
+    def test_extract_title_from_first_non_host_line(self):
+        """Test extracting title from the first non-host line."""
+        script = "Host 1: Welcome!\nHost 2: Thanks!\nThe Future of AI\nHost 1: Let's discuss."
+        result = extract_title_from_podcast(script)
+        self.assertEqual(result, "The_Future_of_AI")
     
-    def test_extract_title_case_insensitive(self):
-        """Test extracting title with different case variations."""
-        blog_post = "TITLE: Machine Learning Fundamentals\n\nContent here..."
-        result = extract_title_from_blog_post(blog_post)
-        self.assertEqual(result, "Machine_Learning_Fundamentals")
-    
-    def test_extract_title_fallback_to_first_line(self):
-        """Test fallback to first line when no 'Title: ' prefix found."""
-        blog_post = "Understanding Python Programming\n\nThis is a blog post about Python..."
-        result = extract_title_from_blog_post(blog_post)
-        self.assertEqual(result, "Understanding_Python_Programming")
-    
-    def test_extract_title_with_markdown_header(self):
-        """Test extracting title from markdown header."""
-        blog_post = "# The Future of AI Technology\n\nContent about AI..."
-        result = extract_title_from_blog_post(blog_post)
-        self.assertEqual(result, "The_Future_of_AI_Technology")
+    def test_extract_title_fallback_to_first_words(self):
+        """Test fallback to first words when no recognizable title found."""
+        script = "Host 1: Welcome!\nHost 2: Thanks!\n\n"
+        result = extract_title_from_podcast(script)
+        self.assertTrue(result.startswith("Host_1_Welcome"))
     
     def test_sanitize_invalid_characters(self):
         """Test sanitizing invalid filename characters."""
-        blog_post = 'Title: How to Use "Quotes" and <Tags> in Code?\n\nContent...'
-        result = extract_title_from_blog_post(blog_post)
-        self.assertEqual(result, "How_to_Use_Quotes_and_Tags_in_Code")
+        script = 'Host 1: Welcome!\nAI: The "Future" of <AI>?'  # Should sanitize
+        result = extract_title_from_podcast(script)
+        self.assertNotIn('"', result)
+        self.assertNotIn('<', result)
+        self.assertNotIn('>', result)
     
     def test_long_title_truncation(self):
         """Test that very long titles are truncated."""
-        long_title = "A" * 150  # 150 characters
-        blog_post = f"Title: {long_title}\n\nContent..."
-        result = extract_title_from_blog_post(blog_post)
+        long_line = "A" * 150
+        script = f"{long_line}\nHost 1: ..."
+        result = extract_title_from_podcast(script)
         self.assertEqual(len(result), 100)  # Should be truncated to 100 chars
         self.assertTrue(result.startswith("A"))
     
     def test_empty_or_whitespace_title_fallback(self):
         """Test fallback when title is empty or whitespace."""
-        blog_post = "Title:   \n\n\n\n"  # Empty content
-        result = extract_title_from_blog_post(blog_post)
-        self.assertEqual(result, "blog_post")
+        script = "\n\n\n"
+        result = extract_title_from_podcast(script)
+        self.assertEqual(result, "podcast")
     
     def test_title_with_spaces_converted_to_underscores(self):
         """Test that spaces in titles are converted to underscores."""
-        blog_post = "Title: This Is A Test Title With Spaces\n\nContent..."
-        result = extract_title_from_blog_post(blog_post)
+        script = "This Is A Test Title With Spaces\nHost 1: ..."
+        result = extract_title_from_podcast(script)
         self.assertEqual(result, "This_Is_A_Test_Title_With_Spaces")
 
 

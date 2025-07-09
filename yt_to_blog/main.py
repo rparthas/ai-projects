@@ -78,61 +78,71 @@ def get_youtube_transcript(video_id: str) -> str | None:
         return None
 
 
-def create_blog_post_prompt(transcript_text: str) -> str:
+def create_podcast_conversation_prompt(transcript_text: str) -> str:
     """
-    Formats the transcript into a prompt for an LLM to generate a blog post.
-    
-    Args:
-        transcript_text (str): The video transcript text
-        
-    Returns:
-        str: Formatted prompt for LLM to generate a blog post
+    Formats the transcript into a prompt for an LLM to generate a podcast-style conversation summary.
     """
-    prompt_template = """Please convert the following video transcript into a well-structured, engaging blog post. Follow these guidelines:
+    prompt_template = '''<System>: You are a skilled summarizer and conversation rewriter, specializing in turning excerpts into engaging podcast conversations. Your role is to analyze any given excerpt, identify clear actionable insights and takeaways, and then reframe them into a casual and engaging podcast-style dialogue. Emphasize accuracy and disclaim if you're unsure about any points. Offer actionable tips, suggestions, and topics of debate based on the excerpt.
 
-1. Create an engaging title for the blog post and prefix it with "Title: "
-2. Write in a professional yet engaging tone that's accessible to a general audience
-3. Organize the content with clear headings and well-structured paragraphs
-4. Extract the key points and main ideas from the transcript
-5. Add smooth transitions between sections to improve readability
-6. Ensure the blog post flows logically from introduction to conclusion
-7. Remove any filler words, repetitions, or transcript artifacts (like "um", "uh", etc.)
-8. Make the content informative and valuable to readers
+<Context>: The user provides an excerpt of text. Your task is to distill key insights and transform them into a dynamic podcast conversation between two hosts. The style should be friendly, informal, and relatable, as if the hosts are chatting naturally. The user expects actionable insights that are accurate and free from hallucination.
 
-Here is the video transcript to convert:
+<Instructions>:
+
+1️⃣ Read the provided excerpt thoroughly.
+2️⃣ Identify and extract the main insights and key takeaways.
+3️⃣ Frame these insights into clear, actionable tips and suggestions.
+4️⃣ Create a script-like dialogue between two podcast hosts.
+
+* Use natural, flowing conversation that keeps the audience engaged.
+* Add casual humor or witty remarks if appropriate, but keep it grounded in the excerpt's content.
+* Encourage curiosity and debate by including questions or discussion points.
+  5️⃣ If the excerpt contains uncertain data or incomplete information, disclaim it or suggest clarifying questions for the hosts to ask.
+  6️⃣ Make sure the conversation is focused and not overly long—aim for brevity while covering all important points.
+  7️⃣ Final output: A script-like dialogue with clear tips, suggestions, and interesting debate topics.
+
+<Constraints>:
+
+* Keep language friendly and engaging.
+* No made-up data—disclaim if unsure.
+* Provide clear, actionable insights.
+* Use a script format (like "Host 1: ... Host 2: ...").
+
+<Output Format>:
+A script-like podcast dialogue covering:
+🔹 Key insights distilled from the excerpt
+🔹 Actionable tips and suggestions
+🔹 Debatable or curious questions for deeper exploration
+
+---
+
+Here is the excerpt to convert:
 
 {transcript_text}
 
-Please provide the blog post content below:"""
+---
 
+'''
     return prompt_template.format(transcript_text=transcript_text)
 
 
-def generate_blog_post_with_ollama(prompt: str, model_name: str) -> str | None:
+def generate_podcast_conversation_with_ollama(prompt: str, model_name: str) -> str | None:
     """
-    Sends the prompt to a local Ollama model and returns the generated blog post text.
-    
-    Args:
-        prompt (str): The formatted prompt for the LLM
-        model_name (str): Name of the Ollama model to use
-        
-    Returns:
-        str | None: Generated blog post text if successful, None if error occurs
+    Sends the prompt to a local Ollama model and returns the generated podcast conversation text.
     """
     try:
         # Make the API call to Ollama
         response = ollama.chat(
             model=model_name,
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that converts video transcripts into engaging blog posts."},
+                {"role": "system", "content": "You are a skilled summarizer and conversation rewriter, specializing in turning excerpts into engaging podcast conversations."},
                 {"role": "user", "content": prompt}
             ]
         )
         
         # Extract the content from the response
-        blog_post_content = response['message']['content']
+        podcast_content = response['message']['content']
         
-        return blog_post_content
+        return podcast_content
         
     except ollama.ResponseError as e:
         print(f"Error: Ollama API error with model '{model_name}': {str(e)}")
@@ -142,43 +152,34 @@ def generate_blog_post_with_ollama(prompt: str, model_name: str) -> str | None:
         return None
 
 
-def extract_title_from_blog_post(blog_post: str) -> str:
+def extract_title_from_podcast(podcast_script: str) -> str:
     """
-    Extract the title from the blog post content.
-    
-    Args:
-        blog_post (str): The generated blog post content
-        
-    Returns:
-        str: Extracted title, sanitized for use as filename
+    Extract a title from the podcast script (use first non-empty line or fallback).
     """
-    # Look for "Title: " pattern at the beginning of the blog post
-    title_match = re.search(r'^Title:\s*(.+)$', blog_post, re.MULTILINE | re.IGNORECASE)
-    
-    if title_match:
-        title = title_match.group(1).strip()
+    # Try to find a line like 'Host 1: ...' and use the first few words
+    for line in podcast_script.splitlines():
+        line = line.strip()
+        if line and not line.lower().startswith('host 1:') and not line.lower().startswith('host 2:'):
+            # Use this as a title
+            title = line
+            break
     else:
-        # Fallback: use the first line if no "Title:" found
-        first_line = blog_post.split('\n')[0].strip()
-        # Remove common markdown headers
-        title = re.sub(r'^#+\s*', '', first_line)
-    
-    # Sanitize title for filename (remove invalid characters)
+        # Fallback: use first 5 words from the script
+        words = podcast_script.strip().split()
+        title = "_".join(words[:5]) if words else "podcast"
+    # Sanitize
     sanitized_title = re.sub(r'[<>:"/\\|?*]', '', title)
-    sanitized_title = re.sub(r'\s+', '_', sanitized_title)  # Replace spaces with underscores
-    sanitized_title = sanitized_title[:100]  # Limit length to 100 characters
-    
-    # Ensure we have a valid filename
+    sanitized_title = re.sub(r'\s+', '_', sanitized_title)
+    sanitized_title = sanitized_title[:100]
     if not sanitized_title or sanitized_title.isspace():
-        sanitized_title = "blog_post"
-    
+        sanitized_title = "podcast"
     return sanitized_title
 
 
 def main_logic():
-    """Main script logic for converting YouTube video to blog post."""
+    """Main script logic for converting YouTube video to podcast conversation."""
     # Set up argument parser
-    parser = argparse.ArgumentParser(description="Convert YouTube video transcript to blog post using Ollama")
+    parser = argparse.ArgumentParser(description="Convert YouTube video transcript to podcast conversation using Ollama")
     parser.add_argument("youtube_url", help="YouTube video URL to convert")
     args = parser.parse_args()
     
@@ -210,26 +211,26 @@ def main_logic():
     print("Transcript fetched successfully.")
     
     # Create prompt
-    print(f"Creating prompt for Ollama model: {ollama_model}...")
-    prompt = create_blog_post_prompt(transcript_text)
+    print(f"Creating podcast conversation prompt for Ollama model: {ollama_model}...")
+    prompt = create_podcast_conversation_prompt(transcript_text)
     
-    # Generate blog post with Ollama
+    # Generate podcast conversation with Ollama
     print("Sending prompt to Ollama...")
-    blog_post = generate_blog_post_with_ollama(prompt, ollama_model)
-    if blog_post is not None:
-        print("Blog post generated successfully.")
+    podcast_script = generate_podcast_conversation_with_ollama(prompt, ollama_model)
+    if podcast_script is not None:
+        print("Podcast conversation generated successfully.")
         
-        # Extract title from blog post and create filename
-        title = extract_title_from_blog_post(blog_post)
-        output_filename = f"{title}.md"
+        # Extract title from podcast script and create filename
+        title = extract_title_from_podcast(podcast_script)
+        output_filename = f"{title}_podcast.md"
         
-        # Write blog post to file
+        # Write podcast conversation to file
         with open(output_filename, 'w', encoding='utf-8') as f:
-            f.write(blog_post)
+            f.write(podcast_script)
         
-        print(f"Blog post saved to {output_filename}")
+        print(f"Podcast conversation saved to {output_filename}")
     else:
-        print("Failed to generate blog post.")
+        print("Failed to generate podcast conversation.")
         sys.exit(1)
 
 

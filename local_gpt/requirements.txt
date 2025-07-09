@@ -1,0 +1,7 @@
+chainlit
+ollama
+chromadb
+PyPDF2
+sentence-transformers
+torch
+numpy 
