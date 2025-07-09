@@ -1,10 +1,13 @@
 [project]
 name = "local-gpt"
 version = "0.1.0"
-description = "Add your description here"
+description = "Local GPT with PDF Q&A using Chainlit"
 requires-python = ">=3.11"
 dependencies = [
-    "chainlit>=2.6.0",
+    "chainlit>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "chromadb>=0.4.0",
+    "sentence-transformers>=2.2.0",
+    "PyPDF2>=3.0.0",
     "ollama>=0.5.1",
-    "pydantic==2.10.1",
 ]
