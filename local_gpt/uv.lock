@@ -994,7 +994,6 @@ dependencies = [
     { name = "ollama" },
     { name = "pypdf2" },
     { name = "python-dotenv" },
-    { name = "requests" },
     { name = "sentence-transformers" },
 ]
 
@@ -1005,7 +1004,6 @@ requires-dist = [
     { name = "ollama", specifier = ">=0.5.1" },
     { name = "pypdf2", specifier = ">=3.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "requests", specifier = ">=2.31.0" },
     { name = "sentence-transformers", specifier = ">=2.2.0" },
 ]
 
