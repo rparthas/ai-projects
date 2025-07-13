@@ -1,0 +1,18 @@
+# Databricks Configuration
+DATABRICKS_HOST=https://your-workspace.cloud.databricks.com
+DATABRICKS_TOKEN=your_databricks_token_here
+DATABRICKS_CLUSTER_ID=your_cluster_id_here
+
+# Model Serving Endpoint
+DATABRICKS_MODEL_ENDPOINT=databricks-claude-3-7-sonnet
+
+# UC Function Registry
+UC_FUNCTION_NAMES=function1,function2,function3
+
+# Chainlit Configuration
+CHAINLIT_HOST=0.0.0.0
+CHAINLIT_PORT=8000
+CHAINLIT_DEBUG=true
+
+# Logging
+LOG_LEVEL=INFO 
