@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from enum import Enum
@@ -45,6 +47,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -53,10 +57,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
-def read_root():
-    """A simple endpoint to confirm the API is running."""
-    return {"message": "Welcome to the Toddler Activity Planner API"}
+@app.get("/", response_class=FileResponse)
+async def read_index():
+    """Serves the index.html file from the static directory."""
+    return "static/index.html"
 
 @app.post("/plan-weekend", response_model=WeekendPlan)
 def plan_weekend(preferences: UserPreferences):

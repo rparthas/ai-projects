@@ -11,4 +11,5 @@ dependencies = [
     "duckduckgo-search",
     "requests",
     "python-dotenv",
+    "pydantic",
 ]

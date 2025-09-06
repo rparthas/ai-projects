@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toddler Activity Planner</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <main>
+        <h1>Toddler Activity Planner</h1>
+        <p>Fill in your preferences to get a custom weekend plan for your toddler in Bengaluru.</p>
+        
+        <form id="plan-form">
+            <label for="child-age">Child's Age:</label>
+            <select id="child-age" name="child_age">
+                <option value="0-1">Infant (0-1 years)</option>
+                <option value="1-3" selected>Toddler (1-3 years)</option>
+                <option value="3-5">Preschooler (3-5 years)</option>
+            </select>
+
+            <label for="activity-types">Activity Types:</label>
+            <select id="activity-types" name="activity_types" multiple>
+                <option value="outdoor" selected>Outdoor</option>
+                <option value="indoor">Indoor</option>
+                <option value="educational">Educational</option>
+            </select>
+
+            <label for="budget-range">Budget:</label>
+            <select id="budget-range" name="budget_range">
+                <option value="low" selected>Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+            </select>
+
+            <label for="transportation">Transportation:</label>
+            <select id="transportation" name="transportation">
+                <option value="personal_car" selected>Personal Car</option>
+                <option value="public_transport">Public Transport</option>
+                <option value="ride_sharing">Ride Sharing</option>
+            </select>
+
+            <label for="duration">Duration:</label>
+            <select id="duration" name="duration">
+                <option value="half_day" selected>Half Day</option>
+                <option value="full_day">Full Day</option>
+            </select>
+
+            <button type="submit">Plan My Weekend</button>
+        </form>
+
+        <div id="loading" class="hidden">Loading...</div>
+        
+        <div id="results" class="hidden">
+            <h2>Your Weekend Plan</h2>
+            <div id="plan-output"></div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('plan-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            const selectedActivityTypes = Array.from(document.getElementById('activity-types').selectedOptions).map(option => option.value);
+
+            const data = {
+                child_age: formData.get('child_age'),
+                activity_types: selectedActivityTypes,
+                budget_range: formData.get('budget_range'),
+                transportation: formData.get('transportation'),
+                duration: formData.get('duration'),
+            };
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('results').classList.add('hidden');
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/plan-weekend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                const planOutput = document.getElementById('plan-output');
+                planOutput.innerHTML = `
+                    <h3>Total Cost: ${result.total_estimated_cost}</h3>
+                    <h4>Activities:</h4>
+                    <ul>
+                        ${result.activities.map(activity => `
+                            <li>
+                                <strong>${activity.name}</strong> (${activity.location}) - ${activity.estimated_cost}<br>
+                                <em>${activity.description}</em>
+                            </li>
+                        `).join('')}
+                    </ul>
+                    <h4>Tips:</h4>
+                    <ul>
+                        ${result.additional_tips.map(tip => `<li>${tip}</li>`).join('')}
+                    </ul>
+                `;
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('plan-output').innerText = 'Failed to generate plan. Please try again.';
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('results').classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -5,3 +5,4 @@ web-bundles
 .claude
 .cursor
 .github
+__pycache__
