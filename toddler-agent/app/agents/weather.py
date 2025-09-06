@@ -1,8 +1,12 @@
-# This file will contain the logic for the Weather Agent node.
+from app.tools.weather_tool import get_weather_forecast
 
 def get_weather(state: dict) -> dict:
-    """Fetches the weather and updates the state."""
-    print("---NODE: Fetching Weather---")
-    # In the future, this will call the weather tool.
-    weather_info = "It's going to be sunny!"
+    """Fetches the real weather forecast using the weather tool and updates the state."""
+    print("---NODE: Fetching Real Weather---")
+    
+    # The tool defaults to Bengaluru, which is what we want for now.
+    # In the future, this could take location from the state.
+    weather_info = get_weather_forecast.invoke({})
+    print(f"Weather info: {weather_info}")
+    
     return {"weather_info": weather_info}

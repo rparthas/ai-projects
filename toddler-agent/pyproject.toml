@@ -8,7 +8,7 @@ dependencies = [
     "uvicorn",
     "langchain",
     "langgraph",
-    "duckduckgo-search",
+    "ddgs",
     "requests",
     "python-dotenv",
     "pydantic",
