@@ -74,8 +74,12 @@
                 duration: formData.get('duration'),
             };
 
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('results').classList.add('hidden');
+            const loadingDiv = document.getElementById('loading');
+            const resultsDiv = document.getElementById('results');
+            const planOutputDiv = document.getElementById('plan-output');
+
+            loadingDiv.classList.remove('hidden');
+            resultsDiv.classList.add('hidden');
 
             try {
                 const response = await fetch('http://127.0.0.1:8000/plan-weekend', {
@@ -86,36 +90,21 @@
                     body: JSON.stringify(data),
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
                 const result = await response.json();
+
+                if (!response.ok) {
+                    const errorDetail = JSON.stringify(result.detail, null, 2);
+                    throw new Error(`API Error (Status: ${response.status}):\n${errorDetail}`);
+                }
                 
-                const planOutput = document.getElementById('plan-output');
-                planOutput.innerHTML = `
-                    <h3>Total Cost: ${result.total_estimated_cost}</h3>
-                    <h4>Activities:</h4>
-                    <ul>
-                        ${result.activities.map(activity => `
-                            <li>
-                                <strong>${activity.name}</strong> (${activity.location}) - ${activity.estimated_cost}<br>
-                                <em>${activity.description}</em>
-                            </li>
-                        `).join('')}
-                    </ul>
-                    <h4>Tips:</h4>
-                    <ul>
-                        ${result.additional_tips.map(tip => `<li>${tip}</li>`).join('')}
-                    </ul>
-                `;
+                planOutputDiv.innerHTML = `<pre>${result.plan}</pre>`;
 
             } catch (error) {
                 console.error('Error:', error);
-                document.getElementById('plan-output').innerText = 'Failed to generate plan. Please try again.';
+                planOutputDiv.innerText = error.message;
             } finally {
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('results').classList.remove('hidden');
+                loadingDiv.classList.add('hidden');
+                resultsDiv.classList.remove('hidden');
             }
         });
     </script>

@@ -12,4 +12,6 @@ dependencies = [
     "requests",
     "python-dotenv",
     "pydantic",
+    "langchain-community",
+    "langchain-ollama"
 ]

@@ -6,6 +6,10 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from enum import Enum
 
+from app.agents.graph import app_graph
+
+# --- Enums and Models ---
+
 class AgeRange(str, Enum):
     INFANT = "0-1"
     TODDLER = "1-3"
@@ -27,19 +31,10 @@ class UserPreferences(BaseModel):
     duration: str = Field(..., description="Available time duration")
     weather_preference: Optional[str] = Field(None, description="Weather preference if any")
 
-class Activity(BaseModel):
-    name: str = Field(..., description="Name of the activity")
-    location: str = Field(..., description="Location of the activity")
-    description: str = Field(..., description="Description of the activity")
-    estimated_cost: str = Field(..., description="Estimated cost")
-    duration: str = Field(..., description="Estimated duration")
-    age_appropriate: bool = Field(..., description="Whether it's age appropriate")
-    activity_type: ActivityType = Field(..., description="Type of activity")
+class PlanResponse(BaseModel):
+    plan: str
 
-class WeekendPlan(BaseModel):
-    activities: List[Activity] = Field(..., description="List of recommended activities")
-    total_estimated_cost: str = Field(..., description="Total estimated cost for all activities")
-    additional_tips: List[str] = Field(..., description="Additional tips for the weekend")
+# --- FastAPI App ---
 
 app = FastAPI(
     title="Toddler Activity Planner API",
@@ -57,46 +52,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- API Endpoints ---
+
 @app.get("/", response_class=FileResponse)
 async def read_index():
     """Serves the index.html file from the static directory."""
     return "static/index.html"
 
-@app.post("/plan-weekend", response_model=WeekendPlan)
-def plan_weekend(preferences: UserPreferences):
+@app.post("/plan-weekend", response_model=PlanResponse)
+async def plan_weekend(preferences: UserPreferences):
     """
     Generate a weekend activity plan based on user preferences.
-    
-    This endpoint accepts user preferences and returns a personalized
-    weekend activity plan for toddlers in Bengaluru.
     """
-    sample_activities = [
-        Activity(
-            name="Lalbagh Botanical Garden",
-            location="Lalbagh, Bengaluru",
-            description="Beautiful botanical garden perfect for morning walks with toddlers",
-            estimated_cost="₹10-20 per person",
-            duration="2-3 hours",
-            age_appropriate=True,
-            activity_type=ActivityType.OUTDOOR
-        ),
-        Activity(
-            name="Cubbon Park",
-            location="Cubbon Park, Bengaluru",
-            description="Large park with plenty of space for kids to run around",
-            estimated_cost="Free",
-            duration="1-2 hours",
-            age_appropriate=True,
-            activity_type=ActivityType.OUTDOOR
-        )
-    ]
-    
-    return WeekendPlan(
-        activities=sample_activities,
-        total_estimated_cost="₹20-40",
-        additional_tips=[
-            "Carry water and snacks for the little one",
-            "Best to visit parks in the morning or evening",
-            "Don't forget sun protection and comfortable shoes"
-        ]
-    )
+    try:
+        # Convert enums to strings for the graph state
+        inputs = {
+            "child_age": preferences.child_age.value,
+            "activity_types": [at.value for at in preferences.activity_types],
+        }
+        
+        # Invoke the agent graph
+        final_state = app_graph.invoke(inputs)
+        
+        # Return the final plan
+        plan_content = final_state.get("final_plan", "Could not generate a plan. Please check the server logs.")
+        return PlanResponse(plan=plan_content)
+    except Exception as e:
+        print(f"!!! ERROR during graph execution: {e}") # Log the error to the console
+        error_message = f"An error occurred on the server. This is likely due to the Ollama server not running or the model not being available. Error: {e}"
+        return PlanResponse(plan=error_message)

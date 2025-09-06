@@ -55,3 +55,9 @@ button:hover {
 .hidden {
     display: none;
 }
+
+#plan-output pre {
+    white-space: pre-wrap;  /* Wrap text, preserving whitespace */
+    word-wrap: break-word;    /* Break long words if necessary */
+    font-family: monospace;   /* Keep a monospaced font for pre-formatted text */
+}
